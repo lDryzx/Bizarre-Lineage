@@ -1,0 +1,246 @@
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+
+local hrp = char:WaitForChild("HumanoidRootPart")
+local humanoid = char:WaitForChild("Humanoid")
+
+-- WONDER OF U
+
+local standTemplate = RS.assets.models.stands["Wonder of U"]
+local stand = standTemplate:Clone()
+stand.Parent = workspace
+
+local root = stand:WaitForChild("HumanoidRootPart")
+local standParts = stand:WaitForChild("StandParts")
+
+for _,v in pairs(standParts:GetDescendants()) do
+	if v:IsA("BasePart") then
+		v.Transparency = 0
+		v.CanCollide = false
+	end
+end
+
+root.Transparency = 1
+
+-- SPARKLES OXIDADO ANARANJADO
+
+local sparkles = Instance.new("Sparkles")
+sparkles.Color = Color3.fromRGB(200,100,40)
+sparkles.SparkleColor = Color3.fromRGB(200,100,40)
+sparkles.Parent = root
+
+-- ANIMATION CONTROLLER
+
+local controller = stand:WaitForChild("AnimationController")
+local animator = controller:FindFirstChildOfClass("Animator") or Instance.new("Animator",controller)
+
+-- ANIMACIONES
+
+local idleAnim = Instance.new("Animation")
+idleAnim.AnimationId = "rbxassetid://113554966080271"
+local idleTrack = animator:LoadAnimation(idleAnim)
+
+local walkAnim = Instance.new("Animation")
+walkAnim.AnimationId = "rbxassetid://98101560813883"
+local walkTrack = animator:LoadAnimation(walkAnim)
+
+local eAnim = Instance.new("Animation")
+eAnim.AnimationId = "rbxassetid://91238701999322"
+local eTrack = animator:LoadAnimation(eAnim)
+
+local cAnim = Instance.new("Animation")
+cAnim.AnimationId = "rbxassetid://114825194497149"
+local cTrack = animator:LoadAnimation(cAnim)
+
+local vAnim = Instance.new("Animation")
+vAnim.AnimationId = "rbxassetid://113062232717397"
+local vTrack = animator:LoadAnimation(vAnim)
+
+local bAnim = Instance.new("Animation")
+bAnim.AnimationId = "rbxassetid://136866895835335"
+local bTrack = animator:LoadAnimation(bAnim)
+
+idleTrack:Play()
+
+local attacking = false
+
+-- FOLLOW
+
+RunService.RenderStepped:Connect(function()
+
+	if attacking then return end
+
+	local sideOffset = hrp.CFrame.RightVector * 2
+	local pos = hrp.Position + sideOffset
+
+	root.CFrame = CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+
+	local move = humanoid.MoveDirection.Magnitude
+
+	if move > 0 then
+
+		if not walkTrack.IsPlaying then
+			idleTrack:Stop()
+			walkTrack:Play()
+		end
+
+	else
+
+		if not idleTrack.IsPlaying then
+			walkTrack:Stop()
+			idleTrack:Play()
+		end
+
+	end
+
+end)
+
+-- ATAQUE FRONTAL
+
+local function frontAttack(track)
+
+	attacking = true
+
+	for _,t in pairs(animator:GetPlayingAnimationTracks()) do
+		t:Stop()
+	end
+
+	local pos = hrp.Position + hrp.CFrame.LookVector * 3
+
+	root.CFrame = CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+
+	root.Anchored = true
+
+	track:Play()
+
+	task.wait(track.Length)
+
+	root.Anchored = false
+
+	idleTrack:Play()
+
+	attacking = false
+
+end
+
+-- INPUTS
+
+UIS.InputBegan:Connect(function(input,gpe)
+
+	if gpe then return end
+
+	if input.KeyCode == Enum.KeyCode.E and not attacking then
+		frontAttack(eTrack)
+	end
+
+	if input.KeyCode == Enum.KeyCode.C and not attacking then
+		frontAttack(cTrack)
+	end
+
+	if input.KeyCode == Enum.KeyCode.V and not attacking then
+		frontAttack(vTrack)
+	end
+
+	if input.KeyCode == Enum.KeyCode.B and not attacking then
+		frontAttack(bTrack)
+	end
+
+end)
+
+-- HUD
+
+local playerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "WonderOfULeakHUD"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,420,0,300)
+frame.Position = UDim2.new(0.5,-210,0.5,-150)
+frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.Text = "Wonder of U Leak by 6QWD"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 26
+title.TextColor3 = Color3.fromRGB(255,215,0)
+title.Parent = frame
+
+-- SCROLL
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Position = UDim2.new(0,10,0,45)
+scroll.Size = UDim2.new(1,-20,1,-55)
+scroll.CanvasSize = UDim2.new(0,0,0,700)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundTransparency = 1
+scroll.Parent = frame
+
+local text = Instance.new("TextLabel")
+text.Size = UDim2.new(1,-10,0,700)
+text.BackgroundTransparency = 1
+text.TextWrapped = true
+text.TextXAlignment = Enum.TextXAlignment.Left
+text.TextYAlignment = Enum.TextYAlignment.Top
+text.Font = Enum.Font.Gotham
+text.TextSize = 16
+text.TextColor3 = Color3.fromRGB(255,215,0)
+
+text.Text = [[
+This leak is 100% real.
+
+All animations and assets shown here were extracted directly from the original game files.
+
+This script demonstrates internal development content related to Wonder of U.
+
+Please note:
+Damage values, timing and combat behavior are temporary and may change in the final release.
+
+This leak is provided strictly for showcase purposes.
+
+------------------------------------
+
+CONTROLS
+
+E  - Front Attack
+C  - Attack Variant
+V  - Attack Variant
+B  - Attack Variant
+
+W / S - Stand walking animation
+
+------------------------------------
+
+This represents a development version of Wonder of U.
+
+Visual effects, timing and balancing are not final and may change before official release.
+
+Press the X button to close this panel.
+]]
+
+text.Parent = scroll
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0,30,0,30)
+close.Position = UDim2.new(1,-35,0,5)
+close.Text = "X"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 18
+close.TextColor3 = Color3.fromRGB(255,215,0)
+close.BackgroundColor3 = Color3.fromRGB(30,30,30)
+close.Parent = frame
+
+close.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
