@@ -1,0 +1,371 @@
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+
+local hrp = char:WaitForChild("HumanoidRootPart")
+local humanoid = char:WaitForChild("Humanoid")
+local animateScript = char:WaitForChild("Animate")
+
+local standTemplate = RS.assets.models.stands["The World Over Heaven"]
+local stand = standTemplate:Clone()
+stand.Parent = workspace
+
+local root = stand:WaitForChild("HumanoidRootPart")
+local standParts = stand:WaitForChild("StandParts")
+
+for _,v in pairs(standParts:GetDescendants()) do
+	if v:IsA("BasePart") then
+		v.Transparency = 0
+		v.CanCollide = false
+	end
+end
+
+root.Transparency = 1
+
+-- sparkles doradas
+local sparkles = Instance.new("Sparkles")
+sparkles.Color = Color3.fromRGB(255,215,0)
+sparkles.SparkleColor = Color3.fromRGB(255,215,0)
+sparkles.Parent = root
+
+local controller = stand:FindFirstChild("AnimationController")
+local animator = controller:FindFirstChildOfClass("Animator") or Instance.new("Animator",controller)
+
+-- ANIMACIONES
+
+local idle = Instance.new("Animation")
+idle.AnimationId = "rbxassetid://122978022935258"
+local idleTrack = animator:LoadAnimation(idle)
+
+local walkF = Instance.new("Animation")
+walkF.AnimationId = "rbxassetid://78794947193749"
+local walkFTrack = animator:LoadAnimation(walkF)
+
+local walkB = Instance.new("Animation")
+walkB.AnimationId = "rbxassetid://15674040635"
+local walkBTrack = animator:LoadAnimation(walkB)
+
+local eAnim = Instance.new("Animation")
+eAnim.AnimationId = "rbxassetid://16873016655"
+local eTrack = animator:LoadAnimation(eAnim)
+
+local cAnim = Instance.new("Animation")
+cAnim.AnimationId = "rbxassetid://86412690271684"
+local cTrack = animator:LoadAnimation(cAnim)
+
+local vAnim = Instance.new("Animation")
+vAnim.AnimationId = "rbxassetid://119994276092306"
+local vTrack = animator:LoadAnimation(vAnim)
+
+local bAnim = Instance.new("Animation")
+bAnim.AnimationId = "rbxassetid://132261242621002"
+local bTrack = animator:LoadAnimation(bAnim)
+
+local pAnim = Instance.new("Animation")
+pAnim.AnimationId = "rbxassetid://114875122449631"
+local pTrack = animator:LoadAnimation(pAnim)
+
+local pPlayerAnim = Instance.new("Animation")
+pPlayerAnim.AnimationId = "rbxassetid://111023356447883"
+local pPlayerTrack = humanoid:LoadAnimation(pPlayerAnim)
+
+local lStandAnim = Instance.new("Animation")
+lStandAnim.AnimationId = "rbxassetid://108256893101272"
+local lStandTrack = animator:LoadAnimation(lStandAnim)
+
+local lPlayerAnim = Instance.new("Animation")
+lPlayerAnim.AnimationId = "rbxassetid://116984001574805"
+local lPlayerTrack = humanoid:LoadAnimation(lPlayerAnim)
+
+local xAnim = Instance.new("Animation")
+xAnim.AnimationId = "rbxassetid://106640214746218"
+local xTrack = humanoid:LoadAnimation(xAnim)
+
+idleTrack:Play()
+
+local posing = false
+local pActive = false
+
+-- FOLLOW
+
+RunService.RenderStepped:Connect(function()
+
+	if posing or pActive then return end
+
+	local right = hrp.CFrame.RightVector * 3
+	local up = Vector3.new(0,3,0)
+
+	local pos = hrp.Position + right + up
+
+	root.CFrame =
+		CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+		* CFrame.Angles(0,math.rad(180),0)
+
+	local move = humanoid.MoveDirection:Dot(hrp.CFrame.LookVector)
+
+	if move > 0.2 then
+
+		if not walkFTrack.IsPlaying then
+			idleTrack:Stop()
+			walkBTrack:Stop()
+			walkFTrack:Play()
+		end
+
+	elseif move < -0.2 then
+
+		if not walkBTrack.IsPlaying then
+			idleTrack:Stop()
+			walkFTrack:Stop()
+			walkBTrack:Play()
+		end
+
+	else
+
+		if not idleTrack.IsPlaying then
+			walkFTrack:Stop()
+			walkBTrack:Stop()
+			idleTrack:Play()
+		end
+
+	end
+
+end)
+
+-- FUNCION ATAQUE FRONTAL
+
+local function frontAttack(track)
+
+	posing = true
+
+	for _,t in pairs(animator:GetPlayingAnimationTracks()) do
+		t:Stop()
+	end
+
+	local pos = hrp.Position + hrp.CFrame.LookVector * 5
+	root.CFrame = CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+
+	root.Anchored = true
+
+	track:Play()
+
+	task.wait(track.Length)
+
+	root.Anchored = false
+	idleTrack:Play()
+
+	posing = false
+
+end
+
+UIS.InputBegan:Connect(function(input,gpe)
+
+	if gpe then return end
+
+	-- E
+	if input.KeyCode == Enum.KeyCode.E and not posing then
+		frontAttack(eTrack)
+	end
+
+	-- C
+	if input.KeyCode == Enum.KeyCode.C and not posing then
+		frontAttack(cTrack)
+	end
+
+	-- V
+	if input.KeyCode == Enum.KeyCode.V and not posing then
+		frontAttack(vTrack)
+	end
+
+	-- B
+	if input.KeyCode == Enum.KeyCode.B and not posing then
+		frontAttack(bTrack)
+	end
+
+	-- P
+
+	if input.KeyCode == Enum.KeyCode.P then
+
+		if not pActive then
+
+			pActive = true
+
+			for _,track in pairs(animator:GetPlayingAnimationTracks()) do
+				track:Stop()
+			end
+
+			idleTrack:Stop()
+
+			local pos =
+				hrp.Position
+				- hrp.CFrame.LookVector * 2
+				+ Vector3.new(0,3,0)
+
+			root.CFrame = CFrame.lookAt(pos, hrp.Position)
+
+			pTrack:Play()
+			pPlayerTrack:Play()
+
+		else
+
+			pActive = false
+
+			pTrack:Stop()
+			pPlayerTrack:Stop()
+
+			idleTrack:Play()
+
+		end
+
+	end
+
+	-- L
+
+	if input.KeyCode == Enum.KeyCode.L and not posing then
+
+		posing = true
+
+		for _,track in pairs(animator:GetPlayingAnimationTracks()) do
+			track:Stop()
+		end
+
+		for _,track in pairs(humanoid:GetPlayingAnimationTracks()) do
+			track:Stop()
+		end
+
+		animateScript.Disabled = true
+
+		local pos = hrp.Position + hrp.CFrame.LookVector * 6
+		root.CFrame = CFrame.lookAt(pos, hrp.Position)
+
+		root.Anchored = true
+		hrp.Anchored = true
+
+		lStandTrack:Play()
+		lPlayerTrack:Play()
+
+		task.wait(lStandTrack.Length)
+
+		humanoid:TakeDamage(37)
+
+		root.Anchored = false
+		hrp.Anchored = false
+
+		animateScript.Disabled = false
+
+		idleTrack:Play()
+
+		posing = false
+
+	end
+
+	-- X (solo jugador)
+
+	if input.KeyCode == Enum.KeyCode.X then
+		xTrack:Play()
+	end
+
+end)
+
+-- HUD LEAK PANEL SCROLLABLE
+
+local playerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "TWOHLeakHUD"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,420,0,300)
+frame.Position = UDim2.new(0.5,-210,0.5,-150)
+frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.Text = "TWOH Leak by 6QWD"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 26
+title.TextColor3 = Color3.fromRGB(255,215,0)
+title.Parent = frame
+
+-- SCROLL FRAME
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Position = UDim2.new(0,10,0,45)
+scroll.Size = UDim2.new(1,-20,1,-55)
+scroll.CanvasSize = UDim2.new(0,0,0,700)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundTransparency = 1
+scroll.Parent = frame
+
+local text = Instance.new("TextLabel")
+text.Size = UDim2.new(1,-10,0,700)
+text.BackgroundTransparency = 1
+text.TextWrapped = true
+text.TextXAlignment = Enum.TextXAlignment.Left
+text.TextYAlignment = Enum.TextYAlignment.Top
+text.Font = Enum.Font.Gotham
+text.TextSize = 16
+text.TextColor3 = Color3.fromRGB(255,215,0)
+
+text.Text = [[
+This leak is 100% real.
+
+All assets, animations and systems shown here were directly extracted from the original game files.
+
+This script demonstrates unfinished internal content related to The World Over Heaven (TWOH).
+
+Please note:
+Damage values, timing and balancing are temporary and may change in the final release.
+
+This leak is provided strictly for showcase purposes.
+
+------------------------------------
+
+CONTROLS
+
+E  - Front Attack
+C  - Front Attack Variant
+V  - Front Attack Variant
+B  - Front Attack Variant
+
+P  - Pose Toggle
+
+L  - Synchronized Animation
+     (Player receives temporary damage)
+
+X  - Player Animation
+
+W / S - Stand walking animations
+
+------------------------------------
+
+This content represents a development build of TWOH.
+
+Visuals, damage values and timings are not final and may change before official release.
+
+Press the X button to close this panel.
+]]
+
+text.Parent = scroll
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0,30,0,30)
+close.Position = UDim2.new(1,-35,0,5)
+close.Text = "X"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 18
+close.TextColor3 = Color3.fromRGB(255,215,0)
+close.BackgroundColor3 = Color3.fromRGB(30,30,30)
+close.Parent = frame
+
+close.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
