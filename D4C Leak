@@ -1,0 +1,432 @@
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+
+local hrp = char:WaitForChild("HumanoidRootPart")
+local humanoid = char:WaitForChild("Humanoid")
+local animateScript = char:WaitForChild("Animate")
+
+-- Clonar D4C
+local standTemplate = RS.assets.models.stands.D4C
+local stand = standTemplate:Clone()
+stand.Parent = workspace
+
+local root = stand:WaitForChild("HumanoidRootPart")
+local standParts = stand:WaitForChild("StandParts")
+
+-- Configurar partes del stand
+for _,v in pairs(standParts:GetDescendants()) do
+	if v:IsA("BasePart") then
+		v.Transparency = 0
+		v.CanCollide = false
+	end
+end
+
+root.Transparency = 1
+
+-- Referencias a objetos importantes
+local revolver = standParts:FindFirstChild("Revolver")
+local flag = standParts:FindFirstChild("American Flag")
+local gun = standParts:FindFirstChild("Gun")
+local ammo = standParts:FindFirstChild("Ammo")
+
+-- Ocultar objetos inicialmente
+if revolver then revolver.Transparency = 1 end
+if flag then flag.Transparency = 1 end
+if gun then gun.Transparency = 1 end
+if ammo then ammo.Transparency = 1 end
+
+-- Sparkles doradas
+local sparkles = Instance.new("Sparkles")
+sparkles.Color = Color3.fromRGB(255,215,0)
+sparkles.SparkleColor = Color3.fromRGB(255,215,0)
+sparkles.Parent = root
+
+local controller = stand:FindFirstChild("AnimationController")
+local animator = controller:FindFirstChildOfClass("Animator") or Instance.new("Animator", controller)
+
+-- Variables para el clon
+local clone = nil
+local cloneHumanoid = nil
+local cloneAnimator = nil
+
+-- ANIMACIONES
+
+-- Idle del stand
+local idle = Instance.new("Animation")
+idle.AnimationId = "rbxassetid://102628959972373"
+local idleTrack = animator:LoadAnimation(idle)
+
+-- Animación de golpe
+local hitAnim = Instance.new("Animation")
+hitAnim.AnimationId = "rbxassetid://134757013496412"
+local hitTrack = animator:LoadAnimation(hitAnim)
+
+-- Animación L (sincronizada)
+local lStandAnim = Instance.new("Animation")
+lStandAnim.AnimationId = "rbxassetid://101686745542511"
+local lStandTrack = animator:LoadAnimation(lStandAnim)
+
+local lPlayerAnim = Instance.new("Animation")
+lPlayerAnim.AnimationId = "rbxassetid://100152845559719"
+local lPlayerTrack = humanoid:LoadAnimation(lPlayerAnim)
+
+-- Animación con bandera
+local flagPlayerAnim = Instance.new("Animation")
+flagPlayerAnim.AnimationId = "rbxassetid://109997651995969"
+local flagPlayerTrack = humanoid:LoadAnimation(flagPlayerAnim)
+
+-- Animación con revolver
+local revolverPlayerAnim = Instance.new("Animation")
+revolverPlayerAnim.AnimationId = "rbxassetid://117508518623781"
+local revolverPlayerTrack = humanoid:LoadAnimation(revolverPlayerAnim)
+
+-- Animación para crear clon (para el usuario)
+local cloneAnim = Instance.new("Animation")
+cloneAnim.AnimationId = "rbxassetid://88963534677147"
+local cloneTrack = humanoid:LoadAnimation(cloneAnim)
+
+-- Animación para el clon (disparo)
+local cloneShootAnim = Instance.new("Animation")
+cloneShootAnim.AnimationId = "rbxassetid://91015198861576"
+
+idleTrack:Play()
+
+local posing = false
+local flagActive = false
+local revolverActive = false
+
+-- FOLLOW
+RunService.RenderStepped:Connect(function()
+	if posing then return end
+
+	local right = hrp.CFrame.RightVector * 3
+	local up = Vector3.new(0,3,0)
+
+	local pos = hrp.Position + right + up
+
+	root.CFrame =
+		CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+		* CFrame.Angles(0,math.rad(180),0)
+end)
+
+-- FUNCIÓN ATAQUE GENERICA
+local function frontAttack(track)
+	posing = true
+
+	for _,t in pairs(animator:GetPlayingAnimationTracks()) do
+		t:Stop()
+	end
+
+	local pos = hrp.Position + hrp.CFrame.LookVector * 5
+	root.CFrame = CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+
+	root.Anchored = true
+
+	track:Play()
+
+	task.wait(track.Length)
+
+	root.Anchored = false
+	idleTrack:Play()
+
+	posing = false
+end
+
+-- FUNCIÓN PARA CREAR CLON DEL JUGADOR
+local function createPlayerClone()
+	-- Eliminar clon anterior si existe
+	if clone and clone.Parent then
+		clone:Destroy()
+		clone = nil
+		cloneHumanoid = nil
+		cloneAnimator = nil
+	end
+	
+	-- Clonar al jugador (no al stand)
+	clone = char:Clone()
+	clone.Name = "Leak by 6QWD (D4C Clone)"
+	clone.Parent = workspace
+	
+	-- Configurar clon
+	local cloneHRP = clone:WaitForChild("HumanoidRootPart")
+	cloneHumanoid = clone:WaitForChild("Humanoid")
+	
+	-- Posicionar clon ligeramente al frente
+	cloneHRP.CFrame = hrp.CFrame * CFrame.new(0,0,-3) * CFrame.Angles(0, math.rad(180), 0)
+	
+	-- Desactivar scripts del clon para que no ejecute lógica duplicada
+	for _,v in pairs(clone:GetDescendants()) do
+		if v:IsA("Script") or v:IsA("LocalScript") then
+			v.Disabled = true
+		end
+	end
+	
+	-- Desactivar el script de animaciones del clon
+	local cloneAnimate = clone:FindFirstChild("Animate")
+	if cloneAnimate then
+		cloneAnimate.Disabled = true
+	end
+	
+	-- Hacer el clon semitransparente (efecto visual)
+	for _,v in pairs(clone:GetDescendants()) do
+		if v:IsA("BasePart") and v ~= cloneHRP then
+			v.Transparency = 0.5
+		end
+	end
+	
+	-- Obtener o crear Animator para el clon
+	cloneAnimator = cloneHumanoid:FindFirstChildOfClass("Animator")
+	if not cloneAnimator then
+		cloneAnimator = Instance.new("Animator", cloneHumanoid)
+	end
+	
+	print("Clon creado:", clone.Name)
+end
+
+-- FUNCIÓN PARA QUE EL CLON DISPARE
+local function cloneShoot()
+	if clone and cloneHumanoid and cloneAnimator then
+		-- Cargar y reproducir animación de disparo en el clon
+		local shootTrack = cloneAnimator:LoadAnimation(cloneShootAnim)
+		shootTrack:Play()
+		
+		-- Buscar revolver en el clon (si existe)
+		local cloneRevolver = clone:FindFirstChild("Revolver", true)
+		if cloneRevolver then
+			cloneRevolver.Transparency = 0
+		end
+		
+		-- Esperar duración de la animación
+		task.wait(shootTrack.Length)
+		
+		-- Ocultar revolver del clon
+		if cloneRevolver then
+			cloneRevolver.Transparency = 1
+		end
+		
+		shootTrack:Destroy()
+	else
+		warn("No hay clon disponible para disparar")
+	end
+end
+
+-- INPUT HANDLER
+UIS.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+
+	-- B - Crear clon del jugador
+	if input.KeyCode == Enum.KeyCode.B and not posing then
+		posing = true
+
+		-- Detener animaciones actuales
+		for _,track in pairs(humanoid:GetPlayingAnimationTracks()) do
+			track:Stop()
+		end
+
+		-- Reproducir animación de creación de clon
+		cloneTrack:Play()
+		
+		-- Crear el clon después de un pequeño delay (sincronizado con la animación)
+		task.wait(0.5) -- Ajusta este tiempo según la animación
+		createPlayerClone()
+		
+		-- Esperar a que termine la animación
+		task.wait(cloneTrack.Length - 0.5)
+		cloneTrack:Stop()
+		
+		posing = false
+		idleTrack:Play()
+	end
+
+	-- E - Si hay clon, que dispare; si no, ataque del stand
+	if input.KeyCode == Enum.KeyCode.E and not posing then
+		if clone and clone.Parent and cloneHumanoid then
+			-- Hay clon, que dispare
+			cloneShoot()
+		else
+			-- No hay clon, ataque normal del stand
+			frontAttack(hitTrack)
+		end
+	end
+
+	-- C - Animación con bandera
+	if input.KeyCode == Enum.KeyCode.C and not posing then
+		if not flagActive then
+			flagActive = true
+			
+			-- Mostrar bandera
+			if flag then flag.Transparency = 0 end
+			
+			flagPlayerTrack:Play()
+			
+			task.wait(flagPlayerTrack.Length)
+			
+			flagPlayerTrack:Stop()
+			
+			-- Ocultar bandera
+			if flag then flag.Transparency = 1 end
+			flagActive = false
+		end
+	end
+
+	-- V - Animación con revolver
+	if input.KeyCode == Enum.KeyCode.V and not posing then
+		if not revolverActive then
+			revolverActive = true
+			
+			-- Mostrar revolver
+			if revolver then 
+				revolver.Transparency = 0
+			end
+			
+			revolverPlayerTrack:Play()
+			
+			task.wait(revolverPlayerTrack.Length)
+			
+			revolverPlayerTrack:Stop()
+			
+			-- Ocultar revolver
+			if revolver then revolver.Transparency = 1 end
+			revolverActive = false
+		end
+	end
+
+	-- L - Animación sincronizada (stand y jugador)
+	if input.KeyCode == Enum.KeyCode.L and not posing then
+		posing = true
+
+		for _,track in pairs(animator:GetPlayingAnimationTracks()) do
+			track:Stop()
+		end
+
+		for _,track in pairs(humanoid:GetPlayingAnimationTracks()) do
+			track:Stop()
+		end
+
+		animateScript.Disabled = true
+
+		local pos = hrp.Position + hrp.CFrame.LookVector * 6
+		root.CFrame = CFrame.lookAt(pos, hrp.Position)
+
+		root.Anchored = true
+		hrp.Anchored = true
+
+		lStandTrack:Play()
+		lPlayerTrack:Play()
+
+		task.wait(lStandTrack.Length)
+
+		humanoid:TakeDamage(37)
+
+		root.Anchored = false
+		hrp.Anchored = false
+
+		animateScript.Disabled = false
+
+		idleTrack:Play()
+		posing = false
+	end
+end)
+
+-- HUD
+local playerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "D4CLeakHUD"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,420,0,300)
+frame.Position = UDim2.new(0.5,-210,0.5,-150)
+frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.Text = "D4C Leak by 6QWD"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 26
+title.TextColor3 = Color3.fromRGB(255,215,0)
+title.Parent = frame
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Position = UDim2.new(0,10,0,45)
+scroll.Size = UDim2.new(1,-20,1,-55)
+scroll.CanvasSize = UDim2.new(0,0,0,800)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundTransparency = 1
+scroll.Parent = frame
+
+local text = Instance.new("TextLabel")
+text.Size = UDim2.new(1,-10,0,800)
+text.BackgroundTransparency = 1
+text.TextWrapped = true
+text.TextXAlignment = Enum.TextXAlignment.Left
+text.TextYAlignment = Enum.TextYAlignment.Top
+text.Font = Enum.Font.Gotham
+text.TextSize = 16
+text.TextColor3 = Color3.fromRGB(255,215,0)
+
+text.Text = [[
+D4C - Dirty Deeds Done Dirt Cheap
+This leak is 100% real.
+
+All assets, animations and systems shown here were directly extracted from the original game files.
+
+This script demonstrates unfinished internal content related to D4C.
+
+Please note:
+Damage values, timing and balancing are temporary and may change in the final release.
+
+------------------------------------
+
+CONTROLS
+
+B  - Create Clone
+     (Creates a duplicate of the player named "Leak by 6QWD (D4C Clone)")
+
+E  - If clone exists: Clone shoots with revolver
+   - If no clone: Stand performs attack
+
+C  - Flag Animation (Player equips American Flag)
+
+V  - Revolver Animation (Player equips revolver)
+
+L  - Synchronized Animation (Stand + Player)
+     (Player receives temporary damage)
+
+------------------------------------
+
+D4C FEATURES:
+- Player cloning system
+- Clone can perform shooting animations
+- American Flag and Revolver assets
+
+This content represents a development build of D4C.
+
+Press X to close this panel.
+]]
+
+text.Parent = scroll
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0,30,0,30)
+close.Position = UDim2.new(1,-35,0,5)
+close.Text = "X"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 18
+close.TextColor3 = Color3.fromRGB(255,215,0)
+close.BackgroundColor3 = Color3.fromRGB(30,30,30)
+close.Parent = frame
+
+close.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
