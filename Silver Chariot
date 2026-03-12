@@ -1,0 +1,357 @@
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+
+local hrp = char:WaitForChild("HumanoidRootPart")
+local humanoid = char:WaitForChild("Humanoid")
+local animateScript = char:WaitForChild("Animate")
+
+-- STAND
+
+local standTemplate = RS.assets.models.stands["Silver Chariot"]
+local skinTemplate = RS.assets.models.stands.Skins["Silver Floridian (Silver Chariot)"]
+
+local stand = standTemplate:Clone()
+stand.Parent = workspace
+
+local root = stand:WaitForChild("HumanoidRootPart")
+local standParts = stand:WaitForChild("StandParts")
+
+for _,v in pairs(standParts:GetDescendants()) do
+	if v:IsA("BasePart") then
+		v.Transparency = 0
+		v.CanCollide = false
+	end
+end
+
+root.Transparency = 1
+
+-- ANIMATION CONTROLLER
+
+local controller = stand:FindFirstChild("AnimationController")
+local animator = controller:FindFirstChildOfClass("Animator") or Instance.new("Animator",controller)
+
+-- ANIMATIONS
+
+local idle = Instance.new("Animation")
+idle.AnimationId = "rbxassetid://117836750065061"
+local idleTrack = animator:LoadAnimation(idle)
+
+local run = Instance.new("Animation")
+run.AnimationId = "rbxassetid://134623760645635"
+local runTrack = animator:LoadAnimation(run)
+
+local cAnim = Instance.new("Animation")
+cAnim.AnimationId = "rbxassetid://17437192874"
+local cTrack = animator:LoadAnimation(cAnim)
+
+local xAnim = Instance.new("Animation")
+xAnim.AnimationId = "rbxassetid://17366712218"
+local xTrack = humanoid:LoadAnimation(xAnim)
+
+local eStandAnim = Instance.new("Animation")
+eStandAnim.AnimationId = "rbxassetid://99942463352942"
+local eStandTrack = animator:LoadAnimation(eStandAnim)
+
+local ePlayerAnim = Instance.new("Animation")
+ePlayerAnim.AnimationId = "rbxassetid://101252148909341"
+local ePlayerTrack = humanoid:LoadAnimation(ePlayerAnim)
+
+idleTrack:Play()
+
+local posing = false
+local skinActive = false
+
+-- FOLLOW SYSTEM
+
+local followConnection
+local function startFollowing()
+	if followConnection then
+		followConnection:Disconnect()
+	end
+	
+	followConnection = RunService.RenderStepped:Connect(function()
+		if posing then return end
+		
+		-- Asegurar que las referencias sigan existiendo
+		if not hrp or not root or not humanoid then return end
+		
+		local right = hrp.CFrame.RightVector * 3
+		local up = Vector3.new(0,3,0)
+		
+		local pos = hrp.Position + right + up
+		
+		root.CFrame = CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+		
+		local move = humanoid.MoveDirection.Magnitude
+		
+		if move > 0.1 then
+			if not runTrack.IsPlaying then
+				idleTrack:Stop()
+				runTrack:Play()
+			end
+		else
+			if not idleTrack.IsPlaying then
+				runTrack:Stop()
+				idleTrack:Play()
+			end
+		end
+	end)
+end
+
+startFollowing()
+
+-- SYNCHRONIZED ATTACK (E)
+
+local function syncedAttack()
+	posing = true
+	
+	for _,track in pairs(animator:GetPlayingAnimationTracks()) do
+		track:Stop()
+	end
+	
+	for _,track in pairs(humanoid:GetPlayingAnimationTracks()) do
+		track:Stop()
+	end
+	
+	animateScript.Disabled = true
+	
+	local pos = hrp.Position + hrp.CFrame.LookVector * 4
+	root.CFrame = CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+	
+	hrp.CFrame = root.CFrame * CFrame.new(0,0,3)
+	
+	root.Anchored = true
+	hrp.Anchored = true
+	
+	eStandTrack:Play()
+	ePlayerTrack:Play()
+	
+	task.wait(eStandTrack.Length)
+	
+	root.Anchored = false
+	hrp.Anchored = false
+	
+	animateScript.Disabled = false
+	
+	idleTrack:Play()
+	
+	posing = false
+end
+
+-- SKIN SWITCH (REEMPLAZAR STAND COMPLETAMENTE)
+
+local function switchToSkin()
+	-- Guardar posición actual
+	local currentPos = root.CFrame
+	
+	-- Destruir stand actual
+	stand:Destroy()
+	
+	-- Crear nuevo stand con la skin
+	stand = skinTemplate:Clone()
+	stand.Parent = workspace
+	
+	-- Obtener referencias
+	root = stand:WaitForChild("HumanoidRootPart")
+	standParts = stand:WaitForChild("StandParts")
+	
+	-- Configurar partes
+	for _,v in pairs(standParts:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Transparency = 0
+			v.CanCollide = false
+		end
+	end
+	root.Transparency = 1
+	
+	-- Posicionar en el lugar del anterior
+	stand:SetPrimaryPartCFrame(currentPos)
+	
+	-- Crear AnimationController si no existe
+	controller = stand:FindFirstChild("AnimationController")
+	if not controller then
+		controller = Instance.new("AnimationController")
+		controller.Parent = stand
+	end
+	
+	animator = controller:FindFirstChildOfClass("Animator") or Instance.new("Animator", controller)
+	
+	-- Recargar animaciones
+	idleTrack = animator:LoadAnimation(idle)
+	runTrack = animator:LoadAnimation(run)
+	cTrack = animator:LoadAnimation(cAnim)
+	eStandTrack = animator:LoadAnimation(eStandAnim)
+	
+	-- Reproducir idle
+	idleTrack:Play()
+	
+	skinActive = true
+	print("Cambiado a skin Silver Floridian")
+end
+
+local function switchToOriginal()
+	-- Guardar posición actual
+	local currentPos = root.CFrame
+	
+	-- Destruir stand actual
+	stand:Destroy()
+	
+	-- Crear nuevo stand con el template original
+	stand = standTemplate:Clone()
+	stand.Parent = workspace
+	
+	-- Obtener referencias
+	root = stand:WaitForChild("HumanoidRootPart")
+	standParts = stand:WaitForChild("StandParts")
+	
+	-- Configurar partes
+	for _,v in pairs(standParts:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Transparency = 0
+			v.CanCollide = false
+		end
+	end
+	root.Transparency = 1
+	
+	-- Posicionar en el lugar del anterior
+	stand:SetPrimaryPartCFrame(currentPos)
+	
+	-- Obtener AnimationController
+	controller = stand:FindFirstChild("AnimationController")
+	animator = controller:FindFirstChildOfClass("Animator") or Instance.new("Animator", controller)
+	
+	-- Recargar animaciones
+	idleTrack = animator:LoadAnimation(idle)
+	runTrack = animator:LoadAnimation(run)
+	cTrack = animator:LoadAnimation(cAnim)
+	eStandTrack = animator:LoadAnimation(eStandAnim)
+	
+	-- Reproducir idle
+	idleTrack:Play()
+	
+	skinActive = false
+	print("Cambiado a Silver Chariot original")
+end
+
+-- INPUTS
+
+UIS.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+	
+	if input.KeyCode == Enum.KeyCode.E and not posing then
+		syncedAttack()
+	end
+	
+	if input.KeyCode == Enum.KeyCode.C and not posing then
+		posing = true
+		
+		for _,t in pairs(animator:GetPlayingAnimationTracks()) do
+			t:Stop()
+		end
+		
+		local pos = hrp.Position + hrp.CFrame.LookVector * 4
+		root.CFrame = CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+		
+		root.Anchored = true
+		
+		cTrack:Play()
+		
+		task.wait(cTrack.Length)
+		
+		root.Anchored = false
+		idleTrack:Play()
+		
+		posing = false
+	end
+	
+	if input.KeyCode == Enum.KeyCode.X then
+		xTrack:Play()
+	end
+	
+	if input.KeyCode == Enum.KeyCode.L then
+		if skinActive then
+			switchToOriginal()
+		else
+			switchToSkin()
+		end
+	end
+end)
+
+-- HUD (solo se crea una vez)
+
+local playerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SilverChariotHUD"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,420,0,300)
+frame.Position = UDim2.new(0.5,-210,0.5,-150)
+frame.BackgroundColor3 = Color3.fromRGB(40,45,50)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.Text = "Silver Chariot Panel"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 26
+title.TextColor3 = Color3.fromRGB(140,210,255)
+title.Parent = frame
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Position = UDim2.new(0,10,0,45)
+scroll.Size = UDim2.new(1,-20,1,-55)
+scroll.CanvasSize = UDim2.new(0,0,0,400)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundTransparency = 1
+scroll.Parent = frame
+
+local text = Instance.new("TextLabel")
+text.Size = UDim2.new(1,-10,0,400)
+text.BackgroundTransparency = 1
+text.TextWrapped = true
+text.TextXAlignment = Enum.TextXAlignment.Left
+text.TextYAlignment = Enum.TextYAlignment.Top
+text.Font = Enum.Font.Gotham
+text.TextSize = 16
+text.TextColor3 = Color3.fromRGB(180,220,255)
+
+text.Text = [[
+Silver Chariot Development Build
+
+CONTROLS
+
+E - Synchronized Attack
+C - Stand Attack
+X - Player Animation
+L - Toggle Silver Floridian Skin
+
+Stand automatically follows the player.
+
+This is a development showcase build.
+]]
+
+text.Parent = scroll
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0,30,0,30)
+close.Position = UDim2.new(1,-35,0,5)
+close.Text = "X"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 18
+close.TextColor3 = Color3.fromRGB(140,210,255)
+close.BackgroundColor3 = Color3.fromRGB(60,65,70)
+close.Parent = frame
+
+close.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
