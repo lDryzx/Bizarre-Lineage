@@ -1,0 +1,420 @@
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+
+local hrp = char:WaitForChild("HumanoidRootPart")
+local humanoid = char:WaitForChild("Humanoid")
+local animateScript = char:WaitForChild("Animate")
+
+local head = char:WaitForChild("Head")
+
+-- Crear un part invisible permanente para reproducir sonidos
+local soundPart = Instance.new("Part")
+soundPart.Name = "SoundPart"
+soundPart.Size = Vector3.new(1,1,1)
+soundPart.Transparency = 1
+soundPart.CanCollide = false
+soundPart.Anchored = false
+soundPart.Parent = char
+
+-- Crear un objeto Sound permanente para cada tipo de sonido
+local activateSound = Instance.new("Sound")
+activateSound.Name = "ActivateSound"
+activateSound.SoundId = "rbxassetid://97366696801895"
+activateSound.Volume = 1
+activateSound.Looped = false
+activateSound.Parent = soundPart
+
+local loopSound = Instance.new("Sound")
+loopSound.Name = "LoopSound"
+loopSound.SoundId = "rbxassetid://92361721638665"
+loopSound.Volume = 0.7
+loopSound.Looped = true
+loopSound.Parent = soundPart
+
+local deactivateSound = Instance.new("Sound")
+deactivateSound.Name = "DeactivateSound"
+deactivateSound.SoundId = "rbxassetid://88506245596663"
+deactivateSound.Volume = 1
+deactivateSound.Looped = false
+deactivateSound.Parent = soundPart
+
+local standTemplate = RS.assets.models.stands.Cream
+local stand = standTemplate:Clone()
+stand.Parent = workspace
+
+local root = stand:WaitForChild("HumanoidRootPart")
+local standParts = stand:WaitForChild("StandParts")
+
+for _,v in pairs(standParts:GetDescendants()) do
+	if v:IsA("BasePart") then
+		v.Transparency = 0
+		v.CanCollide = false
+	end
+end
+
+root.Transparency = 1
+
+-- sparkles negras
+local sparkles = Instance.new("Sparkles")
+sparkles.Color = Color3.fromRGB(0,0,0)
+sparkles.SparkleColor = Color3.fromRGB(0,0,0)
+sparkles.Parent = root
+
+local controller = stand:FindFirstChild("AnimationController")
+local animator = controller:FindFirstChildOfClass("Animator") or Instance.new("Animator",controller)
+
+-- ANIMACIONES
+
+local idle = Instance.new("Animation")
+idle.AnimationId = "rbxassetid://102217084978867"
+local idleTrack = animator:LoadAnimation(idle)
+
+local walkF = Instance.new("Animation")
+walkF.AnimationId = "rbxassetid://15511337279"
+local walkFTrack = animator:LoadAnimation(walkF)
+
+-- Animaciones de invisibilidad
+local invisibleStandAnim = Instance.new("Animation")
+invisibleStandAnim.AnimationId = "rbxassetid://130311788628600"
+local invisibleStandTrack = animator:LoadAnimation(invisibleStandAnim)
+
+local invisiblePlayerAnim = Instance.new("Animation")
+invisiblePlayerAnim.AnimationId = "rbxassetid://77441957745628"
+local invisiblePlayerTrack = humanoid:LoadAnimation(invisiblePlayerAnim)
+
+-- Animaciones de reaparición
+local reappearStandAnim = Instance.new("Animation")
+reappearStandAnim.AnimationId = "rbxassetid://92131111326912"
+local reappearStandTrack = animator:LoadAnimation(reappearStandAnim)
+
+local reappearPlayerAnim = Instance.new("Animation")
+reappearPlayerAnim.AnimationId = "rbxassetid://125339325153840"
+local reappearPlayerTrack = humanoid:LoadAnimation(reappearPlayerAnim)
+
+idleTrack:Play()
+
+local invisible = false
+local textBillboard = nil
+
+-- Función para mantener el soundPart siempre en la posición del jugador
+RunService.RenderStepped:Connect(function()
+	soundPart.CFrame = hrp.CFrame
+end)
+
+-- Función para crear/quitar el texto flotante
+local function createText()
+	if textBillboard then
+		textBillboard:Destroy()
+	end
+	
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "InvisibleText"
+	billboard.Adornee = hrp
+	billboard.Size = UDim2.new(0,300,0,50)
+	billboard.StudsOffset = Vector3.new(0,3,0)
+	billboard.AlwaysOnTop = true
+	
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1,0,1,0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.Text = "Let's assume I am a ball (the model of the ball does not yet exist)"
+	textLabel.TextColor3 = Color3.fromRGB(255,105,180) -- Rosa
+	textLabel.TextScaled = true
+	textLabel.Font = Enum.Font.GothamBold
+	textLabel.Parent = billboard
+	
+	billboard.Parent = player:WaitForChild("PlayerGui")
+	textBillboard = billboard
+end
+
+-- Función para reproducir sonido de activación
+local function playActivateSound()
+	activateSound:Stop()
+	activateSound.TimePosition = 0
+	activateSound:Play()
+end
+
+-- Función para reproducir sonido de desactivación
+local function playDeactivateSound()
+	deactivateSound:Stop()
+	deactivateSound.TimePosition = 0
+	deactivateSound:Play()
+end
+
+-- Función para iniciar sonido loop
+local function startLoopSound()
+	loopSound:Stop()
+	loopSound.TimePosition = 0
+	loopSound:Play()
+end
+
+-- Función para detener sonido loop
+local function stopLoopSound()
+	loopSound:Stop()
+end
+
+-- FOLLOW (stand a la derecha del jugador)
+
+RunService.RenderStepped:Connect(function()
+
+	if invisible then return end
+
+	local right = hrp.CFrame.RightVector * 3 -- Derecha del jugador
+	local up = Vector3.new(0,3,0)
+
+	local pos = hrp.Position + right + up
+
+	root.CFrame =
+		CFrame.lookAt(pos, pos + hrp.CFrame.LookVector)
+
+	local move = humanoid.MoveDirection:Dot(hrp.CFrame.LookVector)
+
+	if move > 0.2 then
+
+		if not walkFTrack.IsPlaying then
+			idleTrack:Stop()
+			walkFTrack:Play()
+		end
+
+	else
+
+		if not idleTrack.IsPlaying then
+			walkFTrack:Stop()
+			idleTrack:Play()
+		end
+
+	end
+
+end)
+
+-- FUNCIÓN PARA INVISIBILIDAD/REAPARICIÓN
+
+local function toggleInvisibility()
+
+	if not invisible then
+		-- Volverse semi-invisible
+		invisible = true
+
+		-- Reproducir sonido de activación
+		playActivateSound()
+
+		for _,track in pairs(animator:GetPlayingAnimationTracks()) do
+			track:Stop()
+		end
+
+		for _,track in pairs(humanoid:GetPlayingAnimationTracks()) do
+			track:Stop()
+		end
+
+		animateScript.Disabled = true
+
+		local pos = hrp.Position + hrp.CFrame.RightVector * 6
+		root.CFrame = CFrame.lookAt(pos, hrp.Position)
+
+		root.Anchored = true
+		hrp.Anchored = true
+
+		-- Reproducir animaciones
+		invisibleStandTrack:Play()
+		invisiblePlayerTrack:Play()
+
+		task.wait(invisibleStandTrack.Length)
+
+		-- Poner transparencia 0.5 al jugador y al stand
+		for _,v in pairs(standParts:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.Transparency = 0.5
+			end
+		end
+		
+		for _,v in pairs(char:GetDescendants()) do
+			if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+				if v == head then
+					v.Transparency = 1 -- Cabeza completamente invisible
+				else
+					v.Transparency = 0.5
+				end
+			end
+		end
+		
+		sparkles.Enabled = false
+		
+		-- Crear texto flotante
+		createText()
+		
+		-- Iniciar sonido en loop
+		startLoopSound()
+
+		root.Anchored = false
+		hrp.Anchored = false
+
+		animateScript.Disabled = false
+
+		idleTrack:Play()
+
+	else
+		-- Reaparecer (volver a transparencia 0)
+		
+		-- Reproducir sonido de desactivación
+		playDeactivateSound()
+
+		for _,track in pairs(animator:GetPlayingAnimationTracks()) do
+			track:Stop()
+		end
+
+		for _,track in pairs(humanoid:GetPlayingAnimationTracks()) do
+			track:Stop()
+		end
+
+		animateScript.Disabled = true
+
+		local pos = hrp.Position + hrp.CFrame.RightVector * 6
+		root.CFrame = CFrame.lookAt(pos, hrp.Position)
+
+		root.Anchored = true
+		hrp.Anchored = true
+
+		reappearStandTrack:Play()
+		reappearPlayerTrack:Play()
+
+		task.wait(reappearStandTrack.Length)
+
+		-- Restaurar transparencia 0
+		for _,v in pairs(standParts:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.Transparency = 0
+			end
+		end
+		
+		for _,v in pairs(char:GetDescendants()) do
+			if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+				v.Transparency = 0
+			end
+		end
+		
+		sparkles.Enabled = true
+		
+		-- Detener sonido en loop
+		stopLoopSound()
+		
+		-- Eliminar texto flotante
+		if textBillboard then
+			textBillboard:Destroy()
+			textBillboard = nil
+		end
+
+		root.Anchored = false
+		hrp.Anchored = false
+
+		animateScript.Disabled = false
+
+		idleTrack:Play()
+
+		invisible = false
+	end
+
+end
+
+UIS.InputBegan:Connect(function(input,gpe)
+
+	if gpe then return end
+
+	-- E - Activar/Desactivar invisibilidad
+	if input.KeyCode == Enum.KeyCode.E then
+		toggleInvisibility()
+	end
+
+end)
+
+-- HUD LEAK PANEL SCROLLABLE
+
+local playerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "CreamLeakHUD"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,420,0,300)
+frame.Position = UDim2.new(0.5,-210,0.5,-150)
+frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.Text = "Cream Leak by 6QWD"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 26
+title.TextColor3 = Color3.fromRGB(255,105,180) -- Rosa
+title.Parent = frame
+
+-- SCROLL FRAME
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Position = UDim2.new(0,10,0,45)
+scroll.Size = UDim2.new(1,-20,1,-55)
+scroll.CanvasSize = UDim2.new(0,0,0,700)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundTransparency = 1
+scroll.Parent = frame
+
+local text = Instance.new("TextLabel")
+text.Size = UDim2.new(1,-10,0,700)
+text.BackgroundTransparency = 1
+text.TextWrapped = true
+text.TextXAlignment = Enum.TextXAlignment.Left
+text.TextYAlignment = Enum.TextYAlignment.Top
+text.Font = Enum.Font.Gotham
+text.TextSize = 16
+text.TextColor3 = Color3.fromRGB(255,105,180) -- Rosa
+
+text.Text = [[
+This leak is 100% real.
+
+All assets, animations and systems shown here were directly extracted from the original game files.
+
+This script demonstrates unfinished internal content related to Cream.
+
+Please note:
+Damage values, timing and balancing are temporary and may change in the final release.
+
+This leak is provided strictly for showcase purposes.
+
+------------------------------------
+
+CONTROLS
+
+E  - Toggle Invisibility/Reappear
+
+------------------------------------
+
+This content represents a development build of Cream.
+
+Visuals, damage values and timings are not final and may change before official release.
+
+Press the X button to close this panel.
+]]
+
+text.Parent = scroll
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0,30,0,30)
+close.Position = UDim2.new(1,-35,0,5)
+close.Text = "X"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 18
+close.TextColor3 = Color3.fromRGB(255,105,180) -- Rosa
+close.BackgroundColor3 = Color3.fromRGB(30,30,30)
+close.Parent = frame
+
+close.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
